@@ -3,8 +3,8 @@ import React, { useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, TouchableOpacity, Text, Linking, View, Alert, Modal, FlatList } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useLanguage } from "@/Component/LanguageContext";
-import translations from "@/Component/translation";
+import { useLanguage } from "@/components/LanguageContext";
+import translations from "@/components/translation";
 
 export default function TabLayout() {
   const [darkMode, setDarkMode] = useState(true);
@@ -79,17 +79,17 @@ export default function TabLayout() {
       icon: { focused: "person-circle", outline: "person-circle-outline" }
     },
     {
-      name: "doctor-consult",
+      name: "DoctorConsult",
       title: "Doctor Consult",
       icon: { focused: "medkit", outline: "medkit-outline" }
     },
     {
-      name: "schedule",
+      name: "Schedule",
       title: "Schedule",
       icon: { focused: "calendar", outline: "calendar-outline" }
     },
     {
-      name:"share-profile",
+      name:"Share",
       title:"Share Profile",
       icon: { focused:"share-social", outline: "share-social-outline" }
     }
