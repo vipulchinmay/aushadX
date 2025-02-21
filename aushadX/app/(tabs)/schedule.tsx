@@ -99,6 +99,7 @@ export default function Schedule() {
     { id: "3", name: t("Netmeds"), logo: "https://www.netmeds.com/assets/global/images/img_logo_netmeds.png", url: "https://www.netmeds.com/" },
     { id: "4", name: t("1mg"), logo: "https://www.1mg.com/images/tata_1mg_logo.svg", url: "https://www.1mg.com/" },
     { id: "5", name: t("PharmEasy"), logo: "https://assets.pharmeasy.in/web-assets/dist/9b3c895d.svg", url: "https://www.pharmeasy.in/" },
+    { id: "6", name: t("Apollo Pharmacy"), logo: apollo, url: "https://www.apollopharmacy.in/" },
   ];
 
   const openWebsite = (url: string) => {
