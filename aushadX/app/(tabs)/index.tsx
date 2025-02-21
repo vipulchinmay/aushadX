@@ -1,4 +1,4 @@
-import { View, StyleSheet, Alert, ActivityIndicator, Text, Animated, Easing } from "react-native";
+import { View, StyleSheet, Alert, ActivityIndicator, Text, Animated, Easing, Image, TouchableOpacity } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "expo-router";
 import ImageViewer from "@/components/ImageViewer";
@@ -22,6 +22,7 @@ export default function Index() {
   // Animation for fade-in effect
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const welcomeAnim = useRef(new Animated.Value(0)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -39,7 +40,33 @@ export default function Index() {
       easing: Easing.out(Easing.exp),
       useNativeDriver: true,
     }).start();
+
+    // Request camera permissions on component mount
+    (async () => {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(t('Permission Needed'), t('Camera permission is needed to take photos'));
+      }
+    })();
   }, []);
+
+  const animateButtonPressIn = () => {
+    Animated.spring(buttonScale, {
+      toValue: 0.95,
+      friction: 3,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const animateButtonPressOut = () => {
+    Animated.spring(buttonScale, {
+      toValue: 1,
+      friction: 3,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+  };
 
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -62,6 +89,32 @@ export default function Index() {
     }
   };
 
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          t("Permission Denied"),
+          t("You need to grant camera access to take a photo.")
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+      });
+      
+      if (!result.canceled) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error taking picture:", error);
+      Alert.alert(t("Error"), t("Failed to take photo. Please try again."));
+    }
+  };
+
   const abortProcessing = () => {
     if (abortController) {
       abortController.abort();
@@ -73,7 +126,7 @@ export default function Index() {
 
   const scanImage = async () => {
     if (!selectedImage) {
-      Alert.alert(t("No Image Selected"), t("Please choose a photo first."));
+      Alert.alert(t("No Image Selected"), t("Please choose or take a photo first."));
       return;
     }
 
@@ -90,10 +143,14 @@ export default function Index() {
       reader.onloadend = async () => {
         const base64Image = reader.result.split(",")[1];
 
+        // 🌍 Send the selected language along with the image
         const serverResponse = await fetch("http://172.20.10.2:5000/scan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: base64Image }),
+          body: JSON.stringify({ 
+            image: base64Image,
+            language: language  // ✅ Sending selected language
+          }),
           signal: controller.signal,
         });
 
@@ -135,12 +192,29 @@ export default function Index() {
       </Animated.View>
 
       <View style={styles.footerContainer}>
-        <Button 
-          label={t("Choose a photo")} 
-          theme="primary" 
-          onPress={pickImage} 
-          disabled={loading} 
-        />
+        <View style={styles.buttonGroup}>
+          <Animated.View style={[{ transform: [{ scale: buttonScale }] }, styles.buttonContainer]}>
+            <TouchableOpacity 
+              style={styles.cameraButton}
+              onPress={takePhoto}
+              onPressIn={animateButtonPressIn}
+              onPressOut={animateButtonPressOut}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>{t("Take Photo")}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+          
+          <View style={styles.buttonContainer}>
+            <Button 
+              label={t("Choose from Gallery")} 
+              theme="primary" 
+              onPress={pickImage} 
+              disabled={loading} 
+            />
+          </View>
+        </View>
+        
         <Button
           label={loading ? (
             <View style={styles.loadingContainer}>
@@ -195,11 +269,36 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 5,
+    marginBottom: 20,
   },
   footerContainer: {
     flex: 1 / 3,
     alignItems: "center",
     marginBottom: 40,
+    width: "100%",
+  },
+  buttonGroup: {
+    width: "100%",
+    flexDirection: "column",
+    gap: 10,
+    marginBottom: 0.5,
+  },
+  buttonContainer: {
+    width: "100%",
+  },
+  cameraButton: {
+    backgroundColor: "#e67e22",
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+  },
+  buttonText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 16,
   },
   loadingText: {
     color: "white",

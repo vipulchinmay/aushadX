@@ -4,38 +4,62 @@ import base64
 from langchain_ollama import OllamaLLM
 from io import BytesIO
 from PIL import Image
+from googletrans import Translator  # Added translation support
 
 app = Flask(__name__)
 
-# Initialize OCR Model Once
+# Initialize OCR Model with Multiple Languages
 reader = easyocr.Reader(['en'])
 
 # Initialize AI Model
 model = OllamaLLM(model="seekhan")
 
-# Server code
+# Initialize Translator
+translator = Translator()
+
+# Function to return language name from code
+def returnlang(selected_language):
+    lang_dict = {
+        "hi": "HINDI",
+        "mr": "MARATHI",
+        "bn": "BENGALI",
+        "ta": "TAMIL",
+        "te": "TELUGU",
+        "kn": "KANNADA",
+        "gu": "GUJARATI",
+        "ml": "MALAYALAM",
+        "pa": "PUNJABI",
+        "en": "ENGLISH"
+    }
+    return lang_dict.get(selected_language, "ENGLISH")  # Default to English
+
 @app.route('/scan', methods=['POST'])
 def scan_medicine():
     try:
         print("✅ Image received. Starting the OCR processing...")
 
+        # Get Image from Request
         data = request.json
-        if not data or "image" not in data:
+        if not data or "image" not in data or "language" not in data:
             print("❌ No image received.")
             return jsonify({"error": "No image received"}), 400
 
         base64_str = data["image"]
-        print("✅ Received Image Base64 Length:", len(base64_str))
+        selected_language = data["language"]  # ✅ Get selected language from request
+        print("✅ Selected Language:", selected_language)
 
         # Convert Base64 to Image
         image_bytes = base64.b64decode(base64_str)
         image = Image.open(BytesIO(image_bytes))
+        
+        output_lang = returnlang(selected_language)
+        print("✅ Output Language:", output_lang)
 
         # OCR Processing
         print("🔍 Starting OCR...")
         ocr_result = reader.readtext(image, detail=0)
         extracted_text = " ".join(ocr_result)
-        print("🔍 OCR Extracted Text:", extracted_text)
+        print("🔍 OCR Extracted text:", extracted_text)
 
         if not extracted_text:
             print("❌ No text found in the image.")
@@ -43,68 +67,39 @@ def scan_medicine():
 
         # AI Processing with Seekhan
         print("🤖 Sending extracted text to AI model for processing...")
-        prompt = f"""{extracted_text}
-        The above is the extracted data from a medicine. From this information, I want you to take the correct information and Tell things like the
-        medicine name, and also provide a 2 line description about the medicine. Also provide the manufacturing date(Which is usually labeled as MFD) and the Expiry Date (which is usually labeled as EXP)
-        from the Extracted text.
-        """
-        response = model.invoke(input=prompt)
-        print("🤖 AI Response:", response)
+        prompt = f"""You are a multilingual medical assistant. Your task is to extract key details from the given medicine label and respond ONLY in {output_lang}. 
 
-        if response:
-            return jsonify({"raw_response": response.strip()}), 200
-        else:
+        ---
+        Extracted Text from the Image:
+        
+        {extracted_text}  
+
+        ---
+        Instructions for Extraction:
+        From the above text, extract the following details:  
+        1. Medicine Name - The official name of the medicine.  
+        2. Description - A two-line explanation of the medicine's purpose.  
+        3. Manufacturing Date (MFD) - The date when the medicine was manufactured.  
+        4. Expiry Date (EXP) - The date after which the medicine should not be used.   
+
+        ---
+        IMPORTANT INSTRUCTIONS:
+        - Respond strictly in {output_lang}.
+        - DO NOT use English or any other language. 
+        - Translate everything, including the structure of the response, into {output_lang}.
+        - Use this structured format, fully translated into {output_lang}:
+        """
+        print(prompt)
+        print("sending to model")
+        ai_response = model.invoke(input=prompt)
+        print("🤖 AI Response:", ai_response)
+
+        # If AI response is empty, return an error
+        if not ai_response:
             print("❌ AI model failed to extract valid details.")
             return jsonify({"error": "AI model failed to extract valid details"}), 500
 
-    except Exception as e:
-        print("❌ Error:", str(e))
-        return jsonify({"error": str(e)}), 500
-
-def scan_medicine():
-    try:
-        print("✅ Image received. Starting the OCR processing...")
-
-        # Get Image from Request
-        data = request.json
-        if not data or "image" not in data:
-            print("❌ No image received.")
-            return jsonify({"error": "No image received"}), 400
-
-        base64_str = data["image"]
-        print("✅ Received Image Base64 Length:", len(base64_str))
-
-        # Convert Base64 to Image
-        image_bytes = base64.b64decode(base64_str)
-        image = Image.open(BytesIO(image_bytes))
-
-        # OCR Processing
-        print("🔍 Starting OCR...")
-        ocr_result = reader.readtext(image, detail=0)
-        extracted_text = " ".join(ocr_result)
-        print("🔍 OCR Extracted Text:", extracted_text)
-
-        if not extracted_text:
-            print("❌ No text found in the image.")
-            return jsonify({"error": "No text found in the image"}), 400
-
-        # AI Processing with Seekhan (Updated prompt format)
-        print("🤖 Sending extracted text to AI model for processing...")
-        prompt = f"""{extracted_text}
-        The above is the extracted data from a medicine. From this information, I want you to take the correct information and Tell things like the
-        medicine name, and also provide a 2 line description about the medicine. Also provide the manufacturing date(Which is usually labeled as MFD) and the Expiry Date (which is usually labeled as EXP)
-        from the Extracted text. 
-        """
-
-        response = model.invoke(input=prompt)
-        print("🤖 AI Response:", response)
-
-        # Directly return AI Response without regex parsing
-        if response:
-            return jsonify({"raw_response": response.strip()}), 200
-        else:
-            print("❌ AI model failed to extract valid details.")
-            return jsonify({"error": "AI model failed to extract valid details"}), 500
+        return jsonify({"raw_response": ai_response.strip()}), 200
 
     except Exception as e:
         print("❌ Error:", str(e))

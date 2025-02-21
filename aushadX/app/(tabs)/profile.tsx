@@ -12,6 +12,7 @@ import {
   Alert,
   Image,
   Easing,
+  Switch,
 } from "react-native";
 import axios from "axios";
 import * as DocumentPicker from "expo-document-picker";
@@ -42,7 +43,9 @@ export default function ProfileScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
-  const [documents, setDocuments] = useState([]);
+  const [medicalReports, setMedicalReports] = useState([]);
+  const [insuranceDocuments, setInsuranceDocuments] = useState([]);
+  const [isInsuranceCovered, setIsInsuranceCovered] = useState(false);
 
   useEffect(() => {
     Animated.parallel([
@@ -122,6 +125,25 @@ export default function ProfileScreen() {
       if (userId) {
         formData.append('_id', userId);
       }
+      formData.append('is_insurance_covered', isInsuranceCovered);
+
+       // Append medical reports
+       medicalReports.forEach((report, index) => {
+        formData.append(`medical_report_${index}`, {
+            uri: report.uri,
+            type: 'application/pdf', // Adjust the type if needed
+            name: report.name,
+        });
+    });
+
+    // Append insurance documents
+    insuranceDocuments.forEach((doc, index) => {
+        formData.append(`insurance_document_${index}`, {
+            uri: doc.uri,
+            type: 'application/pdf', // Adjust the type if needed
+            name: doc.name,
+        });
+    });
 
       const response = await axios.post(API_URL, formData, {
         headers: {
@@ -167,7 +189,7 @@ export default function ProfileScreen() {
     }).start();
   };
 
-  const handleDocumentUpload = async () => {
+  const handleDocumentUpload = async (type) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: "*/*",
@@ -175,7 +197,11 @@ export default function ProfileScreen() {
       });
 
       if (result.type === "success") {
-        setDocuments([...documents, result]);
+        if (type === 'medical') {
+          setMedicalReports([...medicalReports, result]);
+        } else if (type === 'insurance') {
+          setInsuranceDocuments([...insuranceDocuments, result]);
+        }
         Alert.alert("Document Uploaded", result.name);
       }
     } catch (error) {
@@ -235,6 +261,18 @@ export default function ProfileScreen() {
           ))}
         </Animated.View>
 
+        {isEditing && (
+          <View style={styles.insuranceContainer}>
+            <Text style={styles.insuranceLabel}>{t("Is Insurance Covered?")}</Text>
+            <Switch
+              value={isInsuranceCovered}
+              onValueChange={setIsInsuranceCovered}
+              trackColor={{ false: "#767577", true: "#81b0ff" }}
+              thumbColor={isInsuranceCovered ? "#f5dd4b" : "#f4f3f4"}
+            />
+          </View>
+        )}
+
         <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
           {isEditing ? (
             <TouchableOpacity style={styles.saveButton} onPress={handleSave} onPressIn={animateButtonPressIn} onPressOut={animateButtonPressOut}>
@@ -247,19 +285,45 @@ export default function ProfileScreen() {
           )}
         </Animated.View>
 
+        {isRegistering && (
+          <>
+          <TouchableOpacity style={styles.uploadButton} onPress={() => handleDocumentUpload('medical')}>
+            <Text style={styles.uploadText}>{t("Upload Medical Reports")}</Text>
+          </TouchableOpacity>
+
+          {isInsuranceCovered && (
+            <TouchableOpacity style={styles.uploadButton} onPress={() => handleDocumentUpload('insurance')}>
+              <Text style={styles.uploadText}>{t("Upload Insurance Documents")}</Text>
+            </TouchableOpacity>
+          )}
+          </>
+        )}
+
         {!isRegistering && (
           <>
-            <TouchableOpacity style={styles.uploadButton} onPress={handleDocumentUpload}>
-              <Text style={styles.uploadText}>{t("Upload Reports")}</Text>
+            <TouchableOpacity style={styles.uploadButton} onPress={() => handleDocumentUpload('medical')}>
+              <Text style={styles.uploadText}>{t("Upload Medical Reports")}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.uploadButton} onPress={handleDocumentUpload}>
-              <Text style={styles.uploadText}>{t("Upload Insurance details")}</Text>
-            </TouchableOpacity>
+            {isInsuranceCovered && (
+              <TouchableOpacity style={styles.uploadButton} onPress={() => handleDocumentUpload('insurance')}>
+                <Text style={styles.uploadText}>{t("Upload Insurance Documents")}</Text>
+              </TouchableOpacity>
+            )}
 
-            {documents.length > 0 && (
+            {medicalReports.length > 0 && (
               <View style={styles.documentsContainer}>
-                {documents.map((doc, index) => (
+                <Text style={styles.documentTitle}>{t("Medical Reports:")}</Text>
+                {medicalReports.map((doc, index) => (
+                  <Text key={index} style={styles.documentName}>{doc.name}</Text>
+                ))}
+              </View>
+            )}
+
+            {insuranceDocuments.length > 0 && (
+              <View style={styles.documentsContainer}>
+                <Text style={styles.documentTitle}>{t("Insurance Documents:")}</Text>
+                {insuranceDocuments.map((doc, index) => (
                   <Text key={index} style={styles.documentName}>{doc.name}</Text>
                 ))}
               </View>
@@ -304,6 +368,12 @@ const styles = StyleSheet.create({
     fontSize :16 ,
     marginBottom :5 ,
   },
+  documentTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
   uploadText:{
     color:"#fff",
     fontSize :18 ,
@@ -343,5 +413,18 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
-  }
+  },
+  insuranceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    marginBottom: 15,
+    marginTop: 10,
+  },
+  insuranceLabel: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
