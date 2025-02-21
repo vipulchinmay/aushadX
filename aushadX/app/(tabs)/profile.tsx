@@ -19,12 +19,14 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useLanguage } from "@/components/LanguageContext";
 import translations from "@/components/translation";
+import { useNavigation } from "@react-navigation/native";
 
-const API_URL = "http://172.20.10.2:6000/profile";
+const API_URL = "http://172.16.30.163:6000/profile";
 
 export default function ProfileScreen() {
   const { language } = useLanguage();
   const t = (key: string) => translations[language]?.[key] || key;
+  const navigation = useNavigation();
 
   const [userData, setUserData] = useState({
     name: "",
@@ -127,23 +129,23 @@ export default function ProfileScreen() {
       }
       formData.append('is_insurance_covered', isInsuranceCovered);
 
-       // Append medical reports
-       medicalReports.forEach((report, index) => {
+      // Append medical reports
+      medicalReports.forEach((report, index) => {
         formData.append(`medical_report_${index}`, {
-            uri: report.uri,
-            type: 'application/pdf', // Adjust the type if needed
-            name: report.name,
+          uri: report.uri,
+          type: 'application/pdf', // Adjust the type if needed
+          name: report.name,
         });
-    });
+      });
 
-    // Append insurance documents
-    insuranceDocuments.forEach((doc, index) => {
+      // Append insurance documents
+      insuranceDocuments.forEach((doc, index) => {
         formData.append(`insurance_document_${index}`, {
-            uri: doc.uri,
-            type: 'application/pdf', // Adjust the type if needed
-            name: doc.name,
+          uri: doc.uri,
+          type: 'application/pdf', // Adjust the type if needed
+          name: doc.name,
         });
-    });
+      });
 
       const response = await axios.post(API_URL, formData, {
         headers: {
@@ -156,6 +158,9 @@ export default function ProfileScreen() {
         setIsEditing(false);
         setIsRegistering(false);
         Alert.alert(t(isRegistering ? "Registration Successful!" : "Profile Saved Successfully!"));
+        // Navigate to ShareProfile with the user's name
+        console.log("Navigating to ShareProfile with userName:", userData.name);
+        navigation.navigate('Share', { userName: userData.name });
       }
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -287,15 +292,15 @@ export default function ProfileScreen() {
 
         {isRegistering && (
           <>
-          <TouchableOpacity style={styles.uploadButton} onPress={() => handleDocumentUpload('medical')}>
-            <Text style={styles.uploadText}>{t("Upload Medical Reports")}</Text>
-          </TouchableOpacity>
-
-          {isInsuranceCovered && (
-            <TouchableOpacity style={styles.uploadButton} onPress={() => handleDocumentUpload('insurance')}>
-              <Text style={styles.uploadText}>{t("Upload Insurance Documents")}</Text>
+            <TouchableOpacity style={styles.uploadButton} onPress={() => handleDocumentUpload('medical')}>
+              <Text style={styles.uploadText}>{t("Upload Medical Reports")}</Text>
             </TouchableOpacity>
-          )}
+
+            {isInsuranceCovered && (
+              <TouchableOpacity style={styles.uploadButton} onPress={() => handleDocumentUpload('insurance')}>
+                <Text style={styles.uploadText}>{t("Upload Insurance Documents")}</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
 
@@ -337,68 +342,82 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 20, backgroundColor: "#25292e" },
-  header: { fontSize: 24,color: "#fff", fontWeight: "bold", textAlign: "center", marginBottom: 20 },
+  header: { fontSize: 24, color: "#fff", fontWeight: "bold", textAlign: "center", marginBottom: 20 },
   profileIcon: { width: 100, height: 100, alignSelf: "center", marginBottom: 10 },
   profilePhoto: { width: 150, height: 150, borderRadius: 75, alignSelf: "center", marginBottom: 10 },
-  card: { backgroundColor:"#333",
-    width:"100%",
-    borderRadius :10 ,
-    padding :20 ,
-    shadowColor:"#000",
-    shadowOffset:{ width :0 , height :2 },
-    shadowOpacity :0.2 ,
-    shadowRadius :4  },
+  card: { 
+    backgroundColor: "#333",
+    width: "100%",
+    borderRadius: 10,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
   inputContainer: { marginBottom: 12 },
-  label:{
-    color:"#aaa",
-    fontSize :16 ,
-    fontWeight :"600",
-    textTransform :"capitalize",
+  label: {
+    color: "#aaa",
+    fontSize: 16,
+    fontWeight: "600",
+    textTransform: "capitalize",
   },
-  input: { borderWidth: 1, borderColor: "#CCC", borderRadius: 5, padding: 8, backgroundColor: "#FFF" },
+  input: { 
+    borderWidth: 1, 
+    borderColor: "#CCC", 
+    borderRadius: 5, 
+    padding: 8, 
+    backgroundColor: "#FFF" 
+  },
   disabledInput: { backgroundColor: "#E0E0E0" },
-  editButton: { backgroundColor: "#007BFF", padding: 12, borderRadius: 10, alignItems: "center", marginTop: 10 },
+  editButton: { 
+    backgroundColor: "#007BFF", 
+    padding: 12, 
+    borderRadius: 10, 
+    alignItems: "center", 
+    marginTop: 10 
+  },
   editText: { color: "#FFF", fontWeight: "bold" },
-  documentsContainer:{
-    marginTop :20 ,
-    width :"90%",
+  documentsContainer: {
+    marginTop: 20,
+    width: "90%",
   },
-  documentName:{
-    color:"#fff",
-    fontSize :16 ,
-    marginBottom :5 ,
-  },
-  documentTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  documentName: {
+    color: "#fff",
+    fontSize: 16,
     marginBottom: 5,
   },
-  uploadText:{
-    color:"#fff",
-    fontSize :18 ,
-    fontWeight :"bold",
+  documentTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 5,
   },
-  uploadButton:{
-    backgroundColor:"#007BFF",
-    width :"100%",
-    padding :12 ,
-    borderRadius :10 ,
-    alignItems :"center",
-    marginTop :10 ,
+  uploadText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
   },
-  saveButton:{
-    backgroundColor:"#00b894",
-    width :"100%",
-    padding :12 ,
-    borderRadius :10 ,
-    alignItems :"center",
-    marginTop :20 ,
+  uploadButton: {
+    backgroundColor: "#007BFF",
+    width: "100%",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
   },
-  saveText:{
-    color:"#fff",
-    fontSize :18 ,
-    fontWeight :"bold",
+  saveButton: {
+    backgroundColor: "#00b894",
+    width: "100%",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  saveText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
   },
   photoButton: {
     backgroundColor: "#e67e22",
@@ -415,16 +434,16 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   insuranceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 10,
     marginBottom: 15,
     marginTop: 10,
   },
   insuranceLabel: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

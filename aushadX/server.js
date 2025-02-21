@@ -7,7 +7,7 @@ const fs = require("fs");
 
 const app = express();
 
-// Enable CORS with specific origins (Optional: Replace "*" with frontend URL)
+// Enable CORS with specific origins
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
@@ -15,7 +15,6 @@ app.use(express.json());
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadDir = path.join(__dirname, "uploads");
-    // Create the directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -60,26 +59,26 @@ mongoose
   .then(() => console.log("✅ MongoDB Connected"))
   .catch((err) => console.log("❌ MongoDB Connection Error:", err));
 
-// Define User Schema
+// Define User Schema with name index for efficient querying
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
+  name: { type: String, required: true, unique: true, index: true }, // Added unique and index
   age: { type: String, required: true },
   gender: { type: String, required: true },
   blood_group: { type: String, required: true },
   medical_conditions: String,
   health_insurance: String,
   date_of_birth: { type: String, required: true },
-  photo: { type: String }, // Store the path to the photo
+  photo: { type: String },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
 });
 
 const User = mongoose.model("User", userSchema);
 
-// Save or Update Profile (Uses _id instead of name)
+// Save or Update Profile (Uses name instead of _id)
 app.post("/profile", upload.single("photo"), async (req, res) => {
   try {
-    const { _id, name, age, gender, blood_group, medical_conditions, health_insurance, date_of_birth } = req.body;
+    const { name, age, gender, blood_group, medical_conditions, health_insurance, date_of_birth } = req.body;
 
     // Basic Validation
     if (!name || !age || !gender || !blood_group || !date_of_birth) {
@@ -103,32 +102,28 @@ app.post("/profile", upload.single("photo"), async (req, res) => {
       userData.photo = `/uploads/${req.file.filename}`;
     }
 
-    let user;
-    if (_id) {
-      // Update Existing User
-      user = await User.findByIdAndUpdate(
-        _id,
-        userData,
-        { new: true }
-      );
-    } else {
-      // Create New User
-      userData.created_at = new Date();
-      user = new User(userData);
-      await user.save();
-    }
+    // Update or Create User based on name
+    const user = await User.findOneAndUpdate(
+      { name: name },
+      userData,
+      { new: true, upsert: true }
+    );
 
     res.json({ success: true, message: "Profile saved successfully!", user });
   } catch (err) {
     console.error("Error:", err);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    if (err.code === 11000) { // MongoDB duplicate key error
+      res.status(400).json({ success: false, message: "Profile name already exists!" });
+    } else {
+      res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
   }
 });
 
-// Fetch Profile by ID
-app.get("/profile/:id", async (req, res) => {
+// Fetch Profile by Name
+app.get("/profile/name/:name", async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findOne({ name: decodeURIComponent(req.params.name) });
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     res.json({ success: true, user });
@@ -138,7 +133,7 @@ app.get("/profile/:id", async (req, res) => {
   }
 });
 
-// Fetch All Profiles (Optional)
+// Fetch All Profiles
 app.get("/profiles", async (req, res) => {
   try {
     const users = await User.find();
@@ -148,10 +143,10 @@ app.get("/profiles", async (req, res) => {
   }
 });
 
-// Delete Profile
-app.delete("/profile/:id", async (req, res) => {
+// Delete Profile by Name
+app.delete("/profile/name/:name", async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findOne({ name: decodeURIComponent(req.params.name) });
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     // Delete associated photo if it exists
@@ -162,7 +157,7 @@ app.delete("/profile/:id", async (req, res) => {
       }
     }
 
-    await User.findByIdAndDelete(req.params.id);
+    await User.findOneAndDelete({ name: decodeURIComponent(req.params.name) });
     res.json({ success: true, message: "Profile deleted successfully!" });
   } catch (err) {
     res.status(500).json({ success: false, message: "Internal Server Error" });
