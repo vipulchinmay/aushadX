@@ -19,7 +19,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useLanguage } from "@/components/LanguageContext";
 import translations from "@/components/translation";
 
-const API_URL = "http://172.16.30.163:6000/profile";
+const API_URL = "http://172.20.10.2:6000/profile";
 
 export default function ProfileScreen() {
   const { language } = useLanguage();
