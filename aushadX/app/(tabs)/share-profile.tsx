@@ -1,9 +1,16 @@
-import { View, Text } from 'react-native';
+import React from "react";
+import { View, Text, TouchableOpacity, Alert } from "react-native";
+import BluetoothScanner from "../../components/Bluetooth";
 
-export default function ShareProfileScreen() {
+const ShareProfile = () => {
   return (
-    <View>
-      <Text>Share Profile Screen</Text>
+    <View style={{ flex: 1, padding: 20 }}>
+      <Text style={{ fontSize: 22, fontWeight: "bold" }}>
+        Share Profile via Bluetooth
+      </Text>
+      <BluetoothScanner />
     </View>
   );
-}
+};
+
+export default ShareProfile;
